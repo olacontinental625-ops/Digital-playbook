@@ -47,6 +47,7 @@ import {
   getPushSubscriptions,
   runExpiryAndMonthlyChecks,
 } from './server/notifications.ts';
+import { buildProjectZipBuffer } from './server/projectZip.ts';
 
 const PORT = Number(process.env.PORT || 3000);
 
@@ -66,6 +67,22 @@ async function startServer() {
   const app = express();
   app.set('trust proxy', 1);
   app.use(express.json({ limit: '2mb' }));
+
+  app.get('/ola-continental-project.zip', (_req, res) => {
+    try {
+      const zipBuffer = buildProjectZipBuffer(process.cwd());
+      res.setHeader('Content-Type', 'application/zip');
+      res.setHeader(
+        'Content-Disposition',
+        'attachment; filename="ola-continental-digital-logbook.zip"',
+      );
+      res.setHeader('Content-Length', String(zipBuffer.length));
+      res.send(zipBuffer);
+    } catch (err) {
+      console.error('Project ZIP generation failed:', err);
+      res.status(500).json({ error: 'Unable to generate project ZIP archive.' });
+    }
+  });
 
   // ---------------------------------------------------------------------------
   // PUBLIC AUTH & INITIAL SETUP ROUTES
