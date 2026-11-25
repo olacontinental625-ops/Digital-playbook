@@ -1,0 +1,500 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net (Default Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // -------------------------------------------------------------------------
+    // Global Hardened Helpers
+    // -------------------------------------------------------------------------
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        (
+          !exists(/databases/$(database)/documents/config/adminLock) &&
+          request.auth.token.email == 'olacontinental625@gmail.com' &&
+          request.auth.token.email_verified == true
+        )
+      );
+    }
+
+    // -------------------------------------------------------------------------
+    // Entity Validation Blueprints
+    // -------------------------------------------------------------------------
+    function isValidPublicStatus(data) {
+      return data.keys().hasAll(['claimed', 'updatedAt']) &&
+        data.keys().hasOnly(['claimed', 'updatedAt']) &&
+        data.claimed is bool &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidAdminLock(data) {
+      return data.keys().hasAll(['adminUid', 'adminEmail', 'adminFullName', 'claimedAt']) &&
+        data.keys().hasOnly(['adminUid', 'adminEmail', 'adminFullName', 'claimedAt']) &&
+        isValidId(data.adminUid) &&
+        data.adminUid == request.auth.uid &&
+        data.adminEmail is string && data.adminEmail.size() >= 3 && data.adminEmail.size() <= 160 &&
+        data.adminFullName is string && data.adminFullName.size() >= 2 && data.adminFullName.size() <= 120 &&
+        data.claimedAt is timestamp;
+    }
+
+    function isValidAdminProfile(data) {
+      return data.keys().hasAll(['uid', 'email', 'fullName', 'createdAt']) &&
+        data.keys().hasOnly(['uid', 'email', 'fullName', 'createdAt']) &&
+        isValidId(data.uid) &&
+        data.uid == request.auth.uid &&
+        data.email is string && data.email.size() >= 3 && data.email.size() <= 160 &&
+        data.fullName is string && data.fullName.size() >= 2 && data.fullName.size() <= 120 &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'fullName', 'email', 'phone', 'authProvider', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['uid', 'fullName', 'email', 'phone', 'authProvider', 'createdAt', 'updatedAt']) &&
+        isValidId(data.uid) &&
+        data.fullName is string && data.fullName.size() >= 2 && data.fullName.size() <= 120 &&
+        data.email is string && data.email.size() >= 3 && data.email.size() <= 160 &&
+        data.phone is string && data.phone.size() <= 40 &&
+        data.authProvider in ['password', 'google'] &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidSummary(data) {
+      return data.keys().hasAll([
+          'adminUid', 'totalOccupants', 'totalRooms', 'paidCount', 'notPaidCount',
+          'expiringThisMonth', 'expiringWithin7Days', 'totalCollected',
+          'totalUnpaidBalance', 'currencySymbol', 'currencyCode', 'hasSampleData', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'adminUid', 'totalOccupants', 'totalRooms', 'paidCount', 'notPaidCount',
+          'expiringThisMonth', 'expiringWithin7Days', 'totalCollected',
+          'totalUnpaidBalance', 'currencySymbol', 'currencyCode', 'hasSampleData', 'updatedAt'
+        ]) &&
+        isValidId(data.adminUid) &&
+        data.totalOccupants is number && data.totalOccupants >= 0 &&
+        data.totalRooms is number && data.totalRooms >= 0 &&
+        data.paidCount is number && data.paidCount >= 0 &&
+        data.notPaidCount is number && data.notPaidCount >= 0 &&
+        data.expiringThisMonth is number && data.expiringThisMonth >= 0 &&
+        data.expiringWithin7Days is number && data.expiringWithin7Days >= 0 &&
+        data.totalCollected is number && data.totalCollected >= 0 &&
+        data.totalUnpaidBalance is number && data.totalUnpaidBalance >= 0 &&
+        data.currencySymbol is string && data.currencySymbol.size() >= 1 && data.currencySymbol.size() <= 8 &&
+        data.currencyCode is string && data.currencyCode.size() >= 1 && data.currencyCode.size() <= 8 &&
+        data.hasSampleData is bool &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidProperty(data) {
+      return data.keys().hasAll(['adminUid', 'name', 'address', 'description', 'isSample', 'createdAt']) &&
+        data.keys().hasOnly(['adminUid', 'name', 'address', 'description', 'isSample', 'createdAt']) &&
+        isValidId(data.adminUid) &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 120 &&
+        data.address is string && data.address.size() <= 250 &&
+        data.description is string && data.description.size() <= 300 &&
+        data.isSample is bool &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidRoom(data) {
+      return data.keys().hasAll(['adminUid', 'propertyId', 'propertyName', 'roomNumber', 'floorOrWing', 'notes', 'isSample', 'createdAt']) &&
+        data.keys().hasOnly(['adminUid', 'propertyId', 'propertyName', 'roomNumber', 'floorOrWing', 'notes', 'isSample', 'createdAt']) &&
+        isValidId(data.adminUid) &&
+        isValidId(data.propertyId) &&
+        data.propertyName is string && data.propertyName.size() >= 1 && data.propertyName.size() <= 120 &&
+        data.roomNumber is string && data.roomNumber.size() >= 1 && data.roomNumber.size() <= 60 &&
+        data.floorOrWing is string && data.floorOrWing.size() <= 80 &&
+        data.notes is string && data.notes.size() <= 200 &&
+        data.isSample is bool &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidOccupant(data) {
+      return data.keys().hasAll([
+          'adminUid', 'userId', 'serialNumber', 'fullName', 'phone', 'email',
+          'propertyId', 'propertyName', 'roomId', 'roomNumber', 'notes', 'customFields',
+          'isArchived', 'isSample', 'transactionDate', 'amountPaid', 'unpaidBalance',
+          'durationMonths', 'durationLabel', 'commencementDate', 'expiryDate', 'remarks',
+          'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'adminUid', 'userId', 'serialNumber', 'fullName', 'phone', 'email',
+          'propertyId', 'propertyName', 'roomId', 'roomNumber', 'notes', 'customFields',
+          'isArchived', 'isSample', 'transactionDate', 'amountPaid', 'unpaidBalance',
+          'durationMonths', 'durationLabel', 'commencementDate', 'expiryDate', 'remarks',
+          'createdAt', 'updatedAt'
+        ]) &&
+        isValidId(data.adminUid) &&
+        data.userId is string && data.userId.size() <= 128 &&
+        data.serialNumber is number && data.serialNumber >= 1 &&
+        data.fullName is string && data.fullName.size() >= 1 && data.fullName.size() <= 140 &&
+        data.phone is string && data.phone.size() >= 1 && data.phone.size() <= 40 &&
+        data.email is string && data.email.size() <= 160 &&
+        isValidId(data.propertyId) &&
+        data.propertyName is string && data.propertyName.size() >= 1 && data.propertyName.size() <= 120 &&
+        isValidId(data.roomId) &&
+        data.roomNumber is string && data.roomNumber.size() >= 1 && data.roomNumber.size() <= 60 &&
+        data.notes is string && data.notes.size() <= 500 &&
+        data.customFields is map &&
+        data.isArchived is bool &&
+        data.isSample is bool &&
+        data.transactionDate is string && data.transactionDate.size() <= 20 &&
+        data.amountPaid is number && data.amountPaid >= 0 &&
+        data.unpaidBalance is number && data.unpaidBalance >= 0 &&
+        data.durationMonths is number && data.durationMonths >= 0 && data.durationMonths <= 120 &&
+        data.durationLabel is string && data.durationLabel.size() <= 60 &&
+        data.commencementDate is string && data.commencementDate.size() <= 20 &&
+        data.expiryDate is string && data.expiryDate.size() <= 20 &&
+        data.remarks is string && data.remarks.size() <= 500 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidTransaction(data) {
+      return data.keys().hasAll([
+          'adminUid', 'occupantId', 'occupantName', 'serialNumber', 'propertyName', 'roomNumber',
+          'transactionDate', 'amountReceived', 'durationMonths', 'durationLabel',
+          'commencementDate', 'expiryDate', 'transactionRef', 'recordedBy', 'remarks',
+          'receiptUrl', 'isCorrection', 'correctionNote', 'isSample', 'createdAt'
+        ]) &&
+        data.keys().hasOnly([
+          'adminUid', 'occupantId', 'occupantName', 'serialNumber', 'propertyName', 'roomNumber',
+          'transactionDate', 'amountReceived', 'durationMonths', 'durationLabel',
+          'commencementDate', 'expiryDate', 'transactionRef', 'recordedBy', 'remarks',
+          'receiptUrl', 'isCorrection', 'correctionNote', 'isSample', 'createdAt'
+        ]) &&
+        isValidId(data.adminUid) &&
+        isValidId(data.occupantId) &&
+        data.occupantName is string && data.occupantName.size() <= 140 &&
+        data.serialNumber is number &&
+        data.propertyName is string && data.propertyName.size() <= 120 &&
+        data.roomNumber is string && data.roomNumber.size() <= 60 &&
+        data.transactionDate is string && data.transactionDate.size() <= 20 &&
+        data.amountReceived is number &&
+        data.durationMonths is number && data.durationMonths >= 1 && data.durationMonths <= 120 &&
+        data.durationLabel is string && data.durationLabel.size() <= 60 &&
+        data.commencementDate is string && data.commencementDate.size() <= 20 &&
+        data.expiryDate is string && data.expiryDate.size() <= 20 &&
+        data.transactionRef is string && data.transactionRef.size() >= 1 && data.transactionRef.size() <= 80 &&
+        data.recordedBy is string && data.recordedBy.size() <= 120 &&
+        data.remarks is string && data.remarks.size() <= 500 &&
+        data.receiptUrl is string && data.receiptUrl.size() <= 500 &&
+        data.isCorrection is bool &&
+        data.correctionNote is string && data.correctionNote.size() <= 400 &&
+        data.isSample is bool &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidCustomColumn(data) {
+      return data.keys().hasAll(['adminUid', 'columnKey', 'label', 'fieldType', 'sortOrder', 'isVisible', 'createdAt']) &&
+        data.keys().hasOnly(['adminUid', 'columnKey', 'label', 'fieldType', 'sortOrder', 'isVisible', 'createdAt']) &&
+        isValidId(data.adminUid) &&
+        data.columnKey is string && data.columnKey.size() >= 1 && data.columnKey.size() <= 50 &&
+        data.label is string && data.label.size() >= 1 && data.label.size() <= 60 &&
+        data.fieldType in ['text', 'number', 'date'] &&
+        data.sortOrder is number &&
+        data.isVisible is bool &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidNotification(data) {
+      return data.keys().hasAll(['adminUid', 'occupantId', 'ruleType', 'reminderDate', 'dedupeKey', 'title', 'message', 'deliveryStatus', 'createdAt']) &&
+        data.keys().hasOnly(['adminUid', 'occupantId', 'ruleType', 'reminderDate', 'dedupeKey', 'title', 'message', 'deliveryStatus', 'createdAt']) &&
+        isValidId(data.adminUid) &&
+        data.occupantId is string && data.occupantId.size() <= 128 &&
+        data.ruleType is string && data.ruleType.size() <= 40 &&
+        data.reminderDate is string && data.reminderDate.size() <= 20 &&
+        data.dedupeKey is string && data.dedupeKey.size() <= 160 &&
+        data.title is string && data.title.size() <= 120 &&
+        data.message is string && data.message.size() <= 500 &&
+        data.deliveryStatus is string && data.deliveryStatus.size() <= 40 &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidAppSettings(data) {
+      return data.keys().hasAll(['adminUid', 'onesignalAppId', 'currencySymbol', 'currencyCode', 'autoCheckEnabled', 'monthlyReportDay', 'updatedAt']) &&
+        data.keys().hasOnly(['adminUid', 'onesignalAppId', 'currencySymbol', 'currencyCode', 'autoCheckEnabled', 'monthlyReportDay', 'updatedAt']) &&
+        isValidId(data.adminUid) &&
+        data.onesignalAppId is string && data.onesignalAppId.size() <= 120 &&
+        data.currencySymbol is string && data.currencySymbol.size() >= 1 && data.currencySymbol.size() <= 8 &&
+        data.currencyCode is string && data.currencyCode.size() >= 1 && data.currencyCode.size() <= 8 &&
+        data.autoCheckEnabled is bool &&
+        data.monthlyReportDay is number && data.monthlyReportDay >= 1 && data.monthlyReportDay <= 28 &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidAuditLog(data) {
+      return data.keys().hasAll(['adminUid', 'actorName', 'action', 'entityType', 'entityId', 'detailsSummary', 'createdAt']) &&
+        data.keys().hasOnly(['adminUid', 'actorName', 'action', 'entityType', 'entityId', 'detailsSummary', 'createdAt']) &&
+        isValidId(data.adminUid) &&
+        data.actorName is string && data.actorName.size() <= 120 &&
+        data.action is string && data.action.size() <= 80 &&
+        data.entityType is string && data.entityType.size() <= 60 &&
+        data.entityId is string && data.entityId.size() <= 128 &&
+        data.detailsSummary is string && data.detailsSummary.size() <= 500 &&
+        data.createdAt is timestamp;
+    }
+
+    // -------------------------------------------------------------------------
+    // Collection Rules
+    // -------------------------------------------------------------------------
+
+    match /test/connection {
+      allow get: if true;
+    }
+
+    match /publicStatus/{docId} {
+      allow get: if docId == 'admin';
+      allow create: if isSignedIn() &&
+        docId == 'admin' &&
+        isValidPublicStatus(incoming()) &&
+        incoming().claimed == true &&
+        incoming().updatedAt == request.time &&
+        existsAfter(/databases/$(database)/documents/config/adminLock) &&
+        existsAfter(/databases/$(database)/documents/admins/$(request.auth.uid));
+      allow update, delete, list: if false;
+    }
+
+    match /config/{configId} {
+      allow get: if isSignedIn() && configId == 'adminLock' && (
+        existing().adminUid == request.auth.uid ||
+        (request.auth.token.email == 'olacontinental625@gmail.com' && request.auth.token.email_verified == true)
+      );
+      allow create: if isSignedIn() &&
+        configId == 'adminLock' &&
+        isValidAdminLock(incoming()) &&
+        incoming().claimedAt == request.time &&
+        !exists(/databases/$(database)/documents/config/adminLock) &&
+        existsAfter(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
+        existsAfter(/databases/$(database)/documents/publicStatus/admin);
+      allow update, delete, list: if false;
+    }
+
+    match /admins/{adminId} {
+      allow get: if isSignedIn() && isValidId(adminId) && request.auth.uid == adminId;
+      allow create: if isSignedIn() &&
+        isValidId(adminId) &&
+        request.auth.uid == adminId &&
+        isValidAdminProfile(incoming()) &&
+        incoming().createdAt == request.time &&
+        !exists(/databases/$(database)/documents/config/adminLock) &&
+        existsAfter(/databases/$(database)/documents/config/adminLock) &&
+        existsAfter(/databases/$(database)/documents/publicStatus/admin);
+      allow update, delete, list: if false;
+    }
+
+    match /users/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isSignedIn() && existing().uid == request.auth.uid;
+      allow create: if isValidId(userId) &&
+        isOwner(userId) &&
+        isValidUser(incoming()) &&
+        incoming().uid == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(userId) &&
+        (isOwner(userId) || isAdmin()) &&
+        isValidUser(incoming()) &&
+        incoming().uid == existing().uid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['fullName', 'phone', 'updatedAt']);
+      allow delete: if isValidId(userId) && isAdmin();
+    }
+
+    match /summary/{summaryId} {
+      allow get: if isSignedIn() && summaryId == 'dashboard';
+      allow list: if false;
+      allow create: if isAdmin() &&
+        summaryId == 'dashboard' &&
+        isValidSummary(incoming()) &&
+        incoming().adminUid == request.auth.uid &&
+        incoming().updatedAt == request.time;
+      allow update: if isAdmin() &&
+        summaryId == 'dashboard' &&
+        isValidSummary(incoming()) &&
+        incoming().adminUid == existing().adminUid &&
+        incoming().updatedAt == request.time;
+      allow delete: if false;
+    }
+
+    match /properties/{propertyId} {
+      allow get: if isValidId(propertyId) && isAdmin();
+      allow list: if isSignedIn() && existing().adminUid == request.auth.uid;
+      allow create: if isValidId(propertyId) &&
+        isAdmin() &&
+        isValidProperty(incoming()) &&
+        incoming().adminUid == request.auth.uid &&
+        incoming().createdAt == request.time;
+      allow update: if isValidId(propertyId) &&
+        isAdmin() &&
+        isValidProperty(incoming()) &&
+        incoming().adminUid == existing().adminUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['name', 'address', 'description']);
+      allow delete: if isValidId(propertyId) && isAdmin();
+    }
+
+    match /rooms/{roomId} {
+      allow get: if isValidId(roomId) && isAdmin();
+      allow list: if isSignedIn() && existing().adminUid == request.auth.uid;
+      allow create: if isValidId(roomId) &&
+        isAdmin() &&
+        isValidRoom(incoming()) &&
+        incoming().adminUid == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        (
+          exists(/databases/$(database)/documents/properties/$(incoming().propertyId)) ||
+          existsAfter(/databases/$(database)/documents/properties/$(incoming().propertyId))
+        );
+      allow update: if isValidId(roomId) &&
+        isAdmin() &&
+        isValidRoom(incoming()) &&
+        incoming().adminUid == existing().adminUid &&
+        incoming().propertyId == existing().propertyId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['roomNumber', 'floorOrWing', 'notes', 'propertyName']);
+      allow delete: if isValidId(roomId) && isAdmin();
+    }
+
+    match /occupants/{occupantId} {
+      allow get: if isValidId(occupantId) && (
+        isAdmin() ||
+        (isSignedIn() && (
+          existing().userId == request.auth.uid ||
+          (request.auth.token.email_verified == true && existing().email == request.auth.token.email)
+        ))
+      );
+      allow list: if isSignedIn() && (
+        existing().adminUid == request.auth.uid ||
+        existing().userId == request.auth.uid ||
+        (request.auth.token.email_verified == true && existing().email == request.auth.token.email)
+      );
+      allow create: if isValidId(occupantId) &&
+        isAdmin() &&
+        isValidOccupant(incoming()) &&
+        incoming().adminUid == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        (
+          exists(/databases/$(database)/documents/properties/$(incoming().propertyId)) ||
+          existsAfter(/databases/$(database)/documents/properties/$(incoming().propertyId))
+        ) &&
+        (
+          exists(/databases/$(database)/documents/rooms/$(incoming().roomId)) ||
+          existsAfter(/databases/$(database)/documents/rooms/$(incoming().roomId))
+        );
+      allow update: if isValidId(occupantId) &&
+        isAdmin() &&
+        isValidOccupant(incoming()) &&
+        incoming().adminUid == existing().adminUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'fullName', 'phone', 'email', 'userId', 'propertyId', 'propertyName',
+          'roomId', 'roomNumber', 'notes', 'customFields', 'isArchived',
+          'transactionDate', 'amountPaid', 'unpaidBalance', 'durationMonths',
+          'durationLabel', 'commencementDate', 'expiryDate', 'remarks', 'updatedAt'
+        ]);
+      allow delete: if isValidId(occupantId) && isAdmin();
+    }
+
+    match /transactions/{txId} {
+      allow get: if isValidId(txId) && isAdmin();
+      allow list: if isSignedIn() && existing().adminUid == request.auth.uid;
+      allow create: if isValidId(txId) &&
+        isAdmin() &&
+        isValidTransaction(incoming()) &&
+        incoming().adminUid == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        (
+          exists(/databases/$(database)/documents/occupants/$(incoming().occupantId)) ||
+          existsAfter(/databases/$(database)/documents/occupants/$(incoming().occupantId))
+        );
+      allow update: if false;
+      allow delete: if isValidId(txId) && isAdmin() && existing().isSample == true;
+    }
+
+    match /customColumns/{colId} {
+      allow get: if isValidId(colId) && isAdmin();
+      allow list: if isSignedIn() && existing().adminUid == request.auth.uid;
+      allow create: if isValidId(colId) &&
+        isAdmin() &&
+        isValidCustomColumn(incoming()) &&
+        incoming().adminUid == request.auth.uid &&
+        incoming().createdAt == request.time;
+      allow update: if isValidId(colId) &&
+        isAdmin() &&
+        isValidCustomColumn(incoming()) &&
+        incoming().adminUid == existing().adminUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['label', 'isVisible', 'sortOrder']);
+      allow delete: if isValidId(colId) && isAdmin();
+    }
+
+    match /notifications/{notifId} {
+      allow get: if isValidId(notifId) && isAdmin();
+      allow list: if isSignedIn() && existing().adminUid == request.auth.uid;
+      allow create: if isValidId(notifId) &&
+        isAdmin() &&
+        isValidNotification(incoming()) &&
+        incoming().adminUid == request.auth.uid &&
+        incoming().createdAt == request.time;
+      allow update, delete: if false;
+    }
+
+    match /settings/{settingId} {
+      allow get: if isValidId(settingId) && isAdmin();
+      allow list: if isSignedIn() && existing().adminUid == request.auth.uid;
+      allow create: if isValidId(settingId) &&
+        isAdmin() &&
+        isValidAppSettings(incoming()) &&
+        incoming().adminUid == request.auth.uid &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(settingId) &&
+        isAdmin() &&
+        isValidAppSettings(incoming()) &&
+        incoming().adminUid == existing().adminUid &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'onesignalAppId', 'currencySymbol', 'currencyCode',
+          'autoCheckEnabled', 'monthlyReportDay', 'updatedAt'
+        ]);
+      allow delete: if false;
+    }
+
+    match /auditLogs/{logId} {
+      allow get: if isValidId(logId) && isAdmin();
+      allow list: if isSignedIn() && existing().adminUid == request.auth.uid;
+      allow create: if isValidId(logId) &&
+        isAdmin() &&
+        isValidAuditLog(incoming()) &&
+        incoming().adminUid == request.auth.uid &&
+        incoming().createdAt == request.time;
+      allow update, delete: if false;
+    }
+  }
+}

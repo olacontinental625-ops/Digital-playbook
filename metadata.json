@@ -1,0 +1,6 @@
+{
+  "name": "Digital Logbook",
+  "description": "Administrative Digital Logbook & Property Payment Management System for tracking occupants, rooms, payment periods, expiry alerts, and permanent transaction ledgers.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

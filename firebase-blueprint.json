@@ -1,0 +1,280 @@
+{
+  "entities": {
+    "PublicAdminStatus": {
+      "title": "PublicAdminStatus",
+      "description": "Non-PII flag indicating whether the sole administrator account has been claimed.",
+      "type": "object",
+      "properties": {
+        "claimed": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["claimed", "updatedAt"]
+    },
+    "AdminLock": {
+      "title": "AdminLock",
+      "description": "Single-administrator lock record preventing additional admin accounts.",
+      "type": "object",
+      "properties": {
+        "adminUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "adminEmail": { "type": "string", "minLength": 3, "maxLength": 160 },
+        "adminFullName": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "claimedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["adminUid", "adminEmail", "adminFullName", "claimedAt"]
+    },
+    "AdminProfile": {
+      "title": "AdminProfile",
+      "description": "Sole administrator authorization document.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "email": { "type": "string", "minLength": 3, "maxLength": 160 },
+        "fullName": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "fullName", "createdAt"]
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Standard registered user profile with private contact PII.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "fullName": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "email": { "type": "string", "minLength": 3, "maxLength": 160 },
+        "phone": { "type": "string", "maxLength": 40 },
+        "authProvider": { "type": "string", "enum": ["password", "google"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "fullName", "email", "phone", "authProvider", "createdAt", "updatedAt"]
+    },
+    "DashboardSummaryDoc": {
+      "title": "DashboardSummaryDoc",
+      "description": "Aggregate non-PII summary of database occupant count and unpaid balance totals.",
+      "type": "object",
+      "properties": {
+        "adminUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "totalOccupants": { "type": "number" },
+        "totalRooms": { "type": "number" },
+        "paidCount": { "type": "number" },
+        "notPaidCount": { "type": "number" },
+        "expiringThisMonth": { "type": "number" },
+        "expiringWithin7Days": { "type": "number" },
+        "totalCollected": { "type": "number" },
+        "totalUnpaidBalance": { "type": "number" },
+        "currencySymbol": { "type": "string", "maxLength": 8 },
+        "currencyCode": { "type": "string", "maxLength": 8 },
+        "hasSampleData": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["adminUid", "totalOccupants", "totalRooms", "paidCount", "notPaidCount", "totalCollected", "totalUnpaidBalance", "currencySymbol", "currencyCode", "hasSampleData", "updatedAt"]
+    },
+    "Property": {
+      "title": "Property",
+      "description": "Property or location managed in OLA Continental.",
+      "type": "object",
+      "properties": {
+        "adminUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "address": { "type": "string", "maxLength": 250 },
+        "description": { "type": "string", "maxLength": 300 },
+        "isSample": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["adminUid", "name", "address", "description", "isSample", "createdAt"]
+    },
+    "Room": {
+      "title": "Room",
+      "description": "Room or unit within a property.",
+      "type": "object",
+      "properties": {
+        "adminUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "propertyId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "propertyName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "roomNumber": { "type": "string", "minLength": 1, "maxLength": 60 },
+        "floorOrWing": { "type": "string", "maxLength": 80 },
+        "notes": { "type": "string", "maxLength": 200 },
+        "isSample": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["adminUid", "propertyId", "propertyName", "roomNumber", "isSample", "createdAt"]
+    },
+    "Occupant": {
+      "title": "Occupant",
+      "description": "Occupant logbook entry with room assignment, payment period, and unpaid balance tracking.",
+      "type": "object",
+      "properties": {
+        "adminUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "serialNumber": { "type": "number" },
+        "fullName": { "type": "string", "minLength": 1, "maxLength": 140 },
+        "phone": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "email": { "type": "string", "maxLength": 160 },
+        "propertyId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "propertyName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "roomId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "roomNumber": { "type": "string", "minLength": 1, "maxLength": 60 },
+        "notes": { "type": "string", "maxLength": 500 },
+        "customFields": { "type": "object" },
+        "isArchived": { "type": "boolean" },
+        "isSample": { "type": "boolean" },
+        "transactionDate": { "type": "string", "maxLength": 20 },
+        "amountPaid": { "type": "number" },
+        "unpaidBalance": { "type": "number" },
+        "durationMonths": { "type": "number" },
+        "durationLabel": { "type": "string", "maxLength": 60 },
+        "commencementDate": { "type": "string", "maxLength": 20 },
+        "expiryDate": { "type": "string", "maxLength": 20 },
+        "remarks": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["adminUid", "serialNumber", "fullName", "phone", "propertyId", "propertyName", "roomId", "roomNumber", "isArchived", "isSample", "unpaidBalance", "createdAt", "updatedAt"]
+    },
+    "PaymentTransaction": {
+      "title": "PaymentTransaction",
+      "description": "Immutable financial transaction record.",
+      "type": "object",
+      "properties": {
+        "adminUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "occupantId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "occupantName": { "type": "string", "maxLength": 140 },
+        "serialNumber": { "type": "number" },
+        "propertyName": { "type": "string", "maxLength": 120 },
+        "roomNumber": { "type": "string", "maxLength": 60 },
+        "transactionDate": { "type": "string", "maxLength": 20 },
+        "amountReceived": { "type": "number" },
+        "durationMonths": { "type": "number" },
+        "durationLabel": { "type": "string", "maxLength": 60 },
+        "commencementDate": { "type": "string", "maxLength": 20 },
+        "expiryDate": { "type": "string", "maxLength": 20 },
+        "transactionRef": { "type": "string", "maxLength": 80 },
+        "recordedBy": { "type": "string", "maxLength": 120 },
+        "remarks": { "type": "string", "maxLength": 500 },
+        "receiptUrl": { "type": "string", "maxLength": 500 },
+        "isCorrection": { "type": "boolean" },
+        "correctionNote": { "type": "string", "maxLength": 400 },
+        "isSample": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["adminUid", "occupantId", "transactionDate", "amountReceived", "durationMonths", "durationLabel", "commencementDate", "expiryDate", "transactionRef", "recordedBy", "isCorrection", "isSample", "createdAt"]
+    },
+    "CustomColumn": {
+      "title": "CustomColumn",
+      "description": "Configurable custom column definition for the logbook register.",
+      "type": "object",
+      "properties": {
+        "adminUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "columnKey": { "type": "string", "minLength": 1, "maxLength": 50 },
+        "label": { "type": "string", "minLength": 1, "maxLength": 60 },
+        "fieldType": { "type": "string", "enum": ["text", "number", "date"] },
+        "sortOrder": { "type": "number" },
+        "isVisible": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["adminUid", "columnKey", "label", "fieldType", "sortOrder", "isVisible", "createdAt"]
+    },
+    "NotificationEntry": {
+      "title": "NotificationEntry",
+      "description": "Payment expiry or monthly report notification record.",
+      "type": "object",
+      "properties": {
+        "adminUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "occupantId": { "type": "string", "maxLength": 128 },
+        "ruleType": { "type": "string", "maxLength": 40 },
+        "reminderDate": { "type": "string", "maxLength": 20 },
+        "dedupeKey": { "type": "string", "maxLength": 160 },
+        "title": { "type": "string", "maxLength": 120 },
+        "message": { "type": "string", "maxLength": 500 },
+        "deliveryStatus": { "type": "string", "maxLength": 40 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["adminUid", "ruleType", "reminderDate", "dedupeKey", "title", "message", "deliveryStatus", "createdAt"]
+    },
+    "AppSettingsDoc": {
+      "title": "AppSettingsDoc",
+      "description": "Application settings for currency and notifications.",
+      "type": "object",
+      "properties": {
+        "adminUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "onesignalAppId": { "type": "string", "maxLength": 120 },
+        "currencySymbol": { "type": "string", "maxLength": 8 },
+        "currencyCode": { "type": "string", "maxLength": 8 },
+        "autoCheckEnabled": { "type": "boolean" },
+        "monthlyReportDay": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["adminUid", "currencySymbol", "currencyCode", "autoCheckEnabled", "monthlyReportDay", "updatedAt"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Immutable administrative audit trail entry.",
+      "type": "object",
+      "properties": {
+        "adminUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "actorName": { "type": "string", "maxLength": 120 },
+        "action": { "type": "string", "maxLength": 80 },
+        "entityType": { "type": "string", "maxLength": 60 },
+        "entityId": { "type": "string", "maxLength": 128 },
+        "detailsSummary": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["adminUid", "actorName", "action", "entityType", "entityId", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/publicStatus/{docId}": {
+      "schema": { "$ref": "#/entities/PublicAdminStatus" },
+      "description": "Stores whether the sole administrator account has been claimed (no PII)."
+    },
+    "/config/{configId}": {
+      "schema": { "$ref": "#/entities/AdminLock" },
+      "description": "Stores the sole administrator lock record."
+    },
+    "/admins/{adminId}": {
+      "schema": { "$ref": "#/entities/AdminProfile" },
+      "description": "Authorized sole administrator profile."
+    },
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Standard user profiles with private PII."
+    },
+    "/summary/{summaryId}": {
+      "schema": { "$ref": "#/entities/DashboardSummaryDoc" },
+      "description": "Non-PII aggregate summary of database counts and unpaid balances."
+    },
+    "/properties/{propertyId}": {
+      "schema": { "$ref": "#/entities/Property" },
+      "description": "Properties managed by the administrator."
+    },
+    "/rooms/{roomId}": {
+      "schema": { "$ref": "#/entities/Room" },
+      "description": "Rooms/units within properties."
+    },
+    "/occupants/{occupantId}": {
+      "schema": { "$ref": "#/entities/Occupant" },
+      "description": "Occupant register entries."
+    },
+    "/transactions/{txId}": {
+      "schema": { "$ref": "#/entities/PaymentTransaction" },
+      "description": "Immutable payment transaction history."
+    },
+    "/customColumns/{colId}": {
+      "schema": { "$ref": "#/entities/CustomColumn" },
+      "description": "Configurable custom logbook columns."
+    },
+    "/notifications/{notifId}": {
+      "schema": { "$ref": "#/entities/NotificationEntry" },
+      "description": "Generated expiry and monthly report notifications."
+    },
+    "/settings/{settingId}": {
+      "schema": { "$ref": "#/entities/AppSettingsDoc" },
+      "description": "Application settings."
+    },
+    "/auditLogs/{logId}": {
+      "schema": { "$ref": "#/entities/AuditLog" },
+      "description": "Immutable audit logs."
+    }
+  }
+}

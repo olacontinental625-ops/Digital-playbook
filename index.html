@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <script>
+      (function () {
+        try {
+          var targets = [window];
+          if (typeof globalThis !== 'undefined' && globalThis !== window) targets.push(globalThis);
+          var proto = typeof Window !== 'undefined' ? Window.prototype : Object.getPrototypeOf(window);
+          var protoDesc = proto ? Object.getOwnPropertyDescriptor(proto, 'fetch') : null;
+          for (var i = 0; i < targets.length; i++) {
+            var t = targets[i];
+            var ownDesc = Object.getOwnPropertyDescriptor(t, 'fetch');
+            var desc = ownDesc || protoDesc;
+            if (desc && desc.get && !desc.set && (!ownDesc || ownDesc.configurable)) {
+              var nativeFetch = window.fetch.bind(window);
+              Object.defineProperty(t, 'fetch', {
+                value: nativeFetch,
+                writable: true,
+                configurable: true,
+                enumerable: true,
+              });
+            }
+          }
+          var isExtensionSource = function (str) {
+            return typeof str === 'string' && (str.indexOf('chrome-extension://') !== -1 || str.indexOf('moz-extension://') !== -1);
+          };
+          window.addEventListener(
+            'error',
+            function (ev) {
+              var stack = ev && ev.error && ev.error.stack ? String(ev.error.stack) : '';
+              if (ev && (isExtensionSource(ev.filename) || isExtensionSource(stack))) {
+                ev.preventDefault();
+                ev.stopImmediatePropagation();
+              }
+            },
+            true
+          );
+          window.addEventListener(
+            'unhandledrejection',
+            function (ev) {
+              var reason = ev && ev.reason;
+              var stack = reason && reason.stack ? String(reason.stack) : String(reason || '');
+              if (isExtensionSource(stack)) {
+                ev.preventDefault();
+                ev.stopImmediatePropagation();
+              }
+            },
+            true
+          );
+        } catch (_e) {}
+      })();
+    </script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Digital Logbook Portal — OLA Continental</title>
+    <meta name="description" content="Digital Logbook and Payment Management System." />
+    <meta property="og:title" content="Digital Logbook Portal" />
+    <meta property="og:description" content="Digital Logbook and Payment Management System." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="theme-color" content="#0B192C" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Logbook" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+  </head>
+  <body class="bg-slate-50 text-slate-900 antialiased">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
